@@ -19,7 +19,16 @@ def format_date(d):
 @bp.route("/search/<field>/<value>")
 def search(field, value):
     # TBD
-    return ""
+    conn = db.get_db()
+    cursor = conn.cursor()
+    tgs = request.args.get("order_by", "id")
+    order = request.args.get("order", "asc")
+    if order == "asc":
+       cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s, tag t ,tags_pets tp where p.species = s.id and t.name = '{value}' and tp.tag = t.id and tp.pet = t.id order by p.{tgs}")
+    else:
+        cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s, tag t ,tags_pets tp where p.species = s.id and t.name = '{value}' and tp.tag = t.id and tp.pet = t.id order by p.{tgs}")
+    pets = cursor.fetchall()
+    return render_template('search.html', field = field, pets = pets, value = value)
 
 @bp.route("/")
 def dashboard():
@@ -28,11 +37,14 @@ def dashboard():
     oby = request.args.get("order_by", "id") # TODO. This is currently not used. 
     order = request.args.get("order", "asc")
     if order == "asc":
-        cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.id")
+        cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.{oby}")
     else:
-        cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.id desc")
+        cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.{oby} desc")
     pets = cursor.fetchall()
     return render_template('index.html', pets = pets, order="desc" if order=="asc" else "asc")
+
+
+    
 
 
 @bp.route("/<pid>")
@@ -74,8 +86,22 @@ def edit(pid):
     elif request.method == "POST":
         description = request.form.get('description')
         sold = request.form.get("sold")
+
         # TODO Handle sold
+        today = ""
+        if sold == "1" :
+            today = str(datetime.date.today())
+            
+            cursor.execute("update pet set sold = ?, description = ? where id = ?", [today, description, pid])
+            conn.commit()
+            conn.close()
         return redirect(url_for("pets.pet_info", pid=pid), 302)
+
+
+
+
+
+
         
     
 
